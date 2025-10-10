@@ -16,6 +16,18 @@ A modern, feature-rich JavaScript/TypeScript library for implementing wake-word 
 - 🚀 **TypeScript** support
 - 🎮 **Interactive demo** included
 
+## Default Activation Words
+
+### Wake Words (to start transcription):
+- "computer"
+- "hey computer"
+
+### Sleep Words (to stop transcription):
+- "stop listening"
+- "go to sleep"
+
+These words are case-insensitive and can be customized during initialization.
+
 ## Installation
 
 ```bash
@@ -26,18 +38,26 @@ yarn add wake-sleep-stt
 
 ## Usage
 
+### Basic Usage
+
 ```typescript
 import { WakeSleepSTT } from 'wake-sleep-stt';
 
+// Initialize with default settings
 const stt = new WakeSleepSTT({
-  wakeWords: ['hey computer', 'ok computer'],
-  sleepWords: ['go to sleep', 'stop listening'],
-  language: 'en-US',
+  wakeWords: ['computer', 'hey computer'],  // Custom wake words (optional)
+  sleepWords: ['stop listening', 'go to sleep'],  // Custom sleep words (optional)
+  language: 'en-US',  // Language for speech recognition
   onEvent: (event) => {
     if (event.type === 'transcript') {
-      console.log('Transcript:', event.payload.transcript);
+      const { transcript, isFinal, confidence } = event.payload;
+      console.log(`[${isFinal ? 'FINAL' : 'INTERIM'}] ${transcript}`, 
+                 confidence ? `(Confidence: ${Math.round(confidence * 100)}%)` : '');
     } else if (event.type === 'state') {
-      console.log('State changed to:', event.payload.state);
+      console.log(`State changed to: ${event.payload.state}`);
+      if (event.payload.message) {
+        console.log('Message:', event.payload.message);
+      }
     }
   }
 });
@@ -45,8 +65,31 @@ const stt = new WakeSleepSTT({
 // Start listening for wake words
 await stt.startListening();
 
-// Later, when you want to stop
+// Check current state
+console.log('Current state:', stt.getState());
+console.log('Is transcribing?', stt.isTranscribingActive());
+
+// Manually enable/disable transcription if needed
+// stt.enableTranscriptionModePublic();
+// stt.disableTranscriptionModePublic();
+
+// Later, when you want to stop completely
 stt.stopListening();
+```
+
+### Customizing Wake/Sleep Words
+
+```typescript
+// Custom wake/sleep words example
+const customSTT = new WakeSleepSTT({
+  wakeWords: ['alexa', 'ok google', 'hey siri'],
+  sleepWords: ['that\'s all', 'goodbye', 'sleep now'],
+  // Set minimum confidence for wake word detection (0-1)
+  wakeConfidenceThreshold: 0.7,
+  onEvent: (event) => {
+    // Your event handling code
+  }
+});
 ```
 
 ## 🚀 Demo
