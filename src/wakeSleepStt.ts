@@ -367,22 +367,48 @@ export class WakeSleepSTT {
     this.recognition.onresult = (event: any) => {
       const result = event.results[event.resultIndex];
       if (result && result[0]) {
-        const transcript = result[0].transcript;
+        const transcript = result[0].transcript.trim();
         const isFinal = result.isFinal;
         const confidence = result[0].confidence;
 
+        // Skip if confidence is below threshold
         if (confidence && confidence < this.wakeConfidenceThreshold) {
           return;
         }
 
-        this.emitTranscript(transcript, isFinal, confidence);
+        const normalizedTranscript = this.normalizeTranscript(transcript);
+        const detectedWakeWord = this.detectWakeWord(normalizedTranscript);
+        const detectedSleepWord = this.detectSleepWord(normalizedTranscript);
 
-        if (!this.isTranscribing && this.detectWakeWord(transcript)) {
+        // Handle wake word detection
+        if (!this.isTranscribing && detectedWakeWord) {
+          console.log('Wake word detected:', transcript);
           this.enableTranscriptionMode();
+          
+          // Remove the wake word from the transcript if it's at the beginning
+          const wakeWordMatch = normalizedTranscript.match(this.wakeRegex);
+          if (wakeWordMatch && wakeWordMatch.index === 0) {
+            const remainingText = transcript.slice(wakeWordMatch[0].length).trim();
+            if (remainingText) {
+              this.emitTranscript(remainingText, isFinal, confidence);
+            }
+          }
+          return;
         }
 
-        if (this.isTranscribing && this.detectSleepWord(transcript)) {
+        // Handle sleep word detection
+        if (this.isTranscribing && detectedSleepWord) {
+          console.log('Sleep word detected:', transcript);
           this.disableTranscriptionMode();
+          return;
+        }
+
+        // Only emit transcripts when in transcription mode
+        if (this.isTranscribing) {
+          this.emitTranscript(transcript, isFinal, confidence);
+        } else if (detectedWakeWord || detectedSleepWord) {
+          // If we're not in transcription mode but detected a wake/sleep word, handle it
+          console.log('Wake/sleep word detected but not in transcription mode, ignoring');
         }
       }
     };
